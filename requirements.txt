@@ -1,2 +1,2 @@
-gremlinpython==3.4.6
+gremlinpython==3.4.7
 pytest
