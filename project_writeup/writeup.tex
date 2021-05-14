@@ -1,0 +1,97 @@
+\documentclass[12pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+\usepackage{pgfplots}
+\usepackage{enumitem}
+\usepackage{bm}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{titling}
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newcommand{\subtitle}[1]{\posttitle{\par\end{center}\begin{center}\large#1\end{center}\vskip0.5em}}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.4,0.4,0.4}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.91,0.91,0.91}
+\lstdefinestyle{mystyle}{backgroundcolor=\color{backcolour}, commentstyle=\color{codegreen}, keywordstyle=\color{magenta}, numberstyle=\footnotesize\color{codegray}, stringstyle=\color{codepurple}, basicstyle=\ttfamily\fontsize{12}{12}, breakatwhitespace=false, breaklines=true, captionpos=b, keepspaces=true, numbers=left, numbersep=5pt, showspaces=false, showstringspaces=false, showtabs=false, tabsize=2}
+\lstset{style=mystyle}
+
+\newcommand{\code}[1]{\colorbox{backcolour}{\texttt{#1}}}
+
+\begin{document}
+
+\title{CTA200H Final Project Writeup}
+\author{Anatoly Zavyalov}
+\date{\today}
+\maketitle
+
+\section{Abstract}
+
+\section{Installation \& Setup}
+
+The following steps outline how to install JanusGraph along with the Apache Cassandra storage backend\footnote{https://cassandra.apache.org/} and the Elasticsearch indexing backend\footnote{https://www.elastic.co/elasticsearch/}, as well as setting up gremlinpython, which is used for querying the JanusGraph backend from a Python interface. The operating system used is \textbf{Ubuntu 20.04.2 LTS}.
+
+\subsection{Installing Java}
+
+JanusGraph is built on top of Apache Tinkerpop \footnote{https://tinkerpop.apache.org/}, which, in turn, is built on top of Java and hence requires Java SE 8. The implementation of Java that we will install is OpenJDK 1.8. First, we refresh the list of available packages:
+\begin{lstlisting}[numbers=none]
+$ sudo apt update
+\end{lstlisting} 
+
+Next, we install OpenJDK 1.8:
+\begin{lstlisting}[numbers=none]
+$ sudo apt install openjdk-8-jre
+\end{lstlisting}
+
+To verify that the correct version has been installed, we run \code{java -version}. We should see something similar to \code{openjdk version "1.8.0\_292"}. 
+
+\subsection{Setting the \code{\$JAVA\_HOME} environment variable}
+Next, we must set the \code{\$JAVA\_HOME} environment variable. First, we head to \code{/usr/lib/jvm/} and locate the intallation of the JDK. It should look similar to \code{/usr/lib/jvm/java-11-openjdk-amd64}. Next, we set the \code{\$JAVA\_HOME} environment variable to point to the installation of the JDK:
+\begin{lstlisting}[numbers=none]
+$ export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 
+\end{lstlisting}
+
+We doublecheck that this is successful with \code{echo \$JAVA\_HOME}.
+
+\subsection{Setting up JanusGraph}
+
+From the JanusGraph Releases\footnote{https://github.com/JanusGraph/janusgraph/releases}, we download the .zip of the ``full'' installation of JanusGraph (the file name should resemble \code{janusgraph-full-X.X.X.zip}, where \code{X.X.X} is the version number), and extract the contents. This ``full'' installation includes JanusGraph, as well as pre-configured Apache Cassandra and Elasticsearch.
+
+From here, we start the JanusGraph server by running
+\begin{lstlisting}[numbers=none]
+$ bin/janusgraph.sh start
+\end{lstlisting}
+
+We can then open the Gremlin console by running
+\begin{lstlisting}[numbers=none]
+$ bin/gremlin.sh
+\end{lstlisting}
+
+Next, we may create a remote connection to the JanusGraph server:
+\begin{lstlisting}[numbers=none]
+gremlin> :remote connect tinkerpop.server conf/remote.yaml
+\end{lstlisting}
+
+From here, we can send commands to the JanusGraph server by preceding them with \code{:>}. We can avoid this by running 
+\begin{lstlisting}[numbers=none]
+gremlin> :remote console
+\end{lstlisting}
+which will enable sending all queries directly to the JanusGraph server and avoid the need of \code{:>}.
+
+
+
+\section{Timestamp System}
+
+\section{Scaling}
+
+\section{Further Discussion}
+
+
+\end{document}
