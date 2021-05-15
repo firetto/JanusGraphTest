@@ -20,27 +20,25 @@
 \definecolor{codegray}{rgb}{0.4,0.4,0.4}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.91,0.91,0.91}
-\lstdefinestyle{mystyle}{backgroundcolor=\color{backcolour}, commentstyle=\color{codegreen}, keywordstyle=\color{magenta}, numberstyle=\footnotesize\color{codegray}, stringstyle=\color{codepurple}, basicstyle=\ttfamily\fontsize{12}{12}, breakatwhitespace=false, breaklines=true, captionpos=b, keepspaces=true, numbers=left, numbersep=5pt, showspaces=false, showstringspaces=false, showtabs=false, tabsize=2}
+\lstdefinestyle{mystyle}{backgroundcolor=\color{backcolour}, commentstyle=\color{codegreen}, keywordstyle=\color{magenta}, numberstyle=\footnotesize\color{codegray}, stringstyle=\color{codepurple}, basicstyle=\ttfamily\fontsize{10}{10}, breakatwhitespace=false, breaklines=true, captionpos=b, keepspaces=true, numbers=left, numbersep=5pt, showspaces=false, showstringspaces=false, showtabs=false, tabsize=2}
 \lstset{style=mystyle}
 
 \newcommand{\code}[1]{\colorbox{backcolour}{\texttt{#1}}}
 
 \begin{document}
 
-\title{CTA200H Final Project Writeup}
+\title{CTA200H Final Project}
 \author{Anatoly Zavyalov}
 \date{\today}
 \maketitle
 
-\section{Abstract}
-
 \section{Installation \& Setup}
 
-The following steps outline how to install JanusGraph along with the Apache Cassandra storage backend\footnote{https://cassandra.apache.org/} and the Elasticsearch indexing backend\footnote{https://www.elastic.co/elasticsearch/}, as well as setting up gremlinpython, which is used for querying the JanusGraph backend from a Python interface. The operating system used is \textbf{Ubuntu 20.04.2 LTS}.
+The following steps outline how to install JanusGraph\footnote{https://janusgraph.org/} along with the Apache Cassandra storage backend\footnote{https://cassandra.apache.org/} and the Elasticsearch indexing backend\footnote{https://www.elastic.co/elasticsearch/}, as well as setting up Gremlin-Python\footnote{https://pypi.org/project/gremlinpython/}, which is used for querying the JanusGraph backend from a Python interface. The operating system used is \textbf{Ubuntu 20.04.2 LTS}.
 
 \subsection{Installing Java}
 
-JanusGraph is built on top of Apache Tinkerpop \footnote{https://tinkerpop.apache.org/}, which, in turn, is built on top of Java and hence requires Java SE 8. The implementation of Java that we will install is OpenJDK 1.8. First, we refresh the list of available packages:
+JanusGraph is built on top of Apache TinkerPop\footnote{https://tinkerpop.apache.org/}, which, in turn, is built on top of Java and hence requires Java SE 8. The implementation of Java that we will install is OpenJDK 1.8. First, we refresh the list of available packages:
 \begin{lstlisting}[numbers=none]
 $ sudo apt update
 \end{lstlisting} 
@@ -69,7 +67,11 @@ From here, we start the JanusGraph server by running
 $ bin/janusgraph.sh start
 \end{lstlisting}
 
-We can then open the Gremlin console by running
+\subsection{Connecting to JanusGraph}
+
+\subsubsection{Gremlin Console}
+
+We can open the Gremlin console by running
 \begin{lstlisting}[numbers=none]
 $ bin/gremlin.sh
 \end{lstlisting}
@@ -79,19 +81,139 @@ Next, we may create a remote connection to the JanusGraph server:
 gremlin> :remote connect tinkerpop.server conf/remote.yaml
 \end{lstlisting}
 
+In order to use variables when remotely accessing the Gremlin server using Gremlin console, we can also connect to the server with a session:
+\begin{lstlisting}[numbers=none]
+gremlin> :remote connect tinkerpop.server conf/remote.yaml session
+\end{lstlisting}
+
 From here, we can send commands to the JanusGraph server by preceding them with \code{:>}. We can avoid this by running 
 \begin{lstlisting}[numbers=none]
 gremlin> :remote console
 \end{lstlisting}
 which will enable sending all queries directly to the JanusGraph server and avoid the need of \code{:>}.
 
+From here, we may instantiate a new graph by running
+\begin{lstlisting}[numbers=none]
+gremlin> graph = JanusGraphFactory.open("conf/janusgraph-cassandra-es.properties")
+gremlin> g = graph.traversal()
+\end{lstlisting}
+to create a graph instance.
 
+\subsubsection{Gremlin-Python module}
+
+We can also access the JanusGraph server from a Python interface. First, we install the \code{gremlinpython} Python module by running
+\begin{lstlisting}[numbers=none]
+$ pip install gremlinpython
+\end{lstlisting}
+
+Note that a minimum \code{gremlinpython} version of \code{3.4.7} must be used for full functionality. Now, we may create a Python file to connect to and query the graph:
+\begin{lstlisting}[language=Python]
+# Import full gremlinpython functionality
+from gremlin_python import statics
+from gremlin_python.structure.graph import Graph
+from gremlin_python.process.graph_traversal import __
+from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
+
+# Instantiate a Gremlin Graph clientside
+graph = Graph()
+
+# Connect to the server, instantiate traversal of graph. Note that the server is opened on port 8182 by default.
+g = graph.traversal().withRemote(DriverRemoteConnection('ws://localhost:8182/gremlin','g'))
+
+# Get the vertices of the graph as a list, and print them.
+print(g.V().toList())
+
+\end{lstlisting}
+
+If a graph has already been instantiated in the JanusGraph server (see \textbf{2.4.1}), this code will print a list of the vertices of the graph (which, by default, is the empty list).
 
 \section{Timestamp System}
 
+One of the more desired functionality required for the HIRAX project involves determining the graph's structure at some point in time. Specifically, we wish to know, at a specific date and time, whether two vertices were connected and what the properties of the elements represented by those vertices were. Unfortunately, neither the core Apache TinkerPop nor JanusGraph support such complex timestamp queries. In the following subsections, we describe methods to implement such functionality.
+
+\subsection{Determining Connections Between Vertices}
+
+In a practical use case, users would be able to connect and disconnect vertices in the graph at any time. To implement functionality described above, we will record the time that the connection was changed, as well as whether the vertices have been connected or disconnected. Every time that two vertices are connected and disconnected, we create a new \textit{connection} between the two vertices. Each connection will have a \textit{start time} and an \textit{end time}. When a connection between two vertices is created, its start time is set to the time that it was created, and the end time is set to infinity. When a user disconnects the two vertices, the latest connection's end time is set to the time the user disconnected the vertices. When a user decides to connect the two vertices again, a new connection is created with a new start time and a set time set to infinity, and all previous connections remain for when the graph is to be queried at a past time.
+
+For example, for two vertices \(A\) and \(B\), consider the following user queries:
+\begin{itemize}
+    \item \textbf{Time:} 0. \textbf{Query:} Connect vertices \(A\) and \(B\).
+    \item \textbf{Time:} 1. \textbf{Query:} Disconnect vertices \(A\) and \(B\).
+    \item \textbf{Time:} 2. \textbf{Query:} Connect vertices \(A\) and \(B\).
+    \item \textbf{Time:} 3. \textbf{Query:} Disconnect vertices \(A\) and \(B\).
+    \item \textbf{Time:} 4. \textbf{Query:} Connect vertices \(A\) and \(B\).
+\end{itemize}
+
+One possible implementation would be, for each connection, to form a new \textit{edge} between the vertices. Each edge will contain the connection information, namely the start and end times of the connection. For example, after the queries above, the following illustration represents the edges between vertices \(A\) and \(B\):
+\begin{figure}[H]
+    \centering
+    \fontsize{11pt}{2pt}\selectfont
+    \def\svgwidth{4in}
+    \input{drawing_1.pdf_tex}
+    \caption{Connections between two vertices along with timestamps for start and end times}
+\end{figure}
+
+When determining whether two vertices were connected at time \(t\), it would be very easy to iterate through all edges and determine whether a connection existed such that \(t\) fell in between the start and end times for the connection. If so, then the vertices were connected at this time. Otherwise, no such connection existed.
+
+Such an implementation would trivial in Gremlin: simply filter the edges between two vertices to determine whether an edge exists such that \(t\) falls in between its start and end times. The main downfall of this technique is that every edge must be iterated through in order to determine whether a connection existed at some time, resulting in a worst-case time complexity of \(\mathcal{O}(n)\), where \(n\) is the number of edges, implying that, as more and more connections are created and broken, querying the graph with a timestamp would get slower over time.
+
+\medspace
+
+Another implementation could be to simply have one edge between two vertices with a single list property. The (sorted) list will contain two-tuples of form \((time, status)\), where \(time\) denotes the time when the connection was changed, and \(status\) is a Boolean representing whether a connection was formed or broken. Hence, the above queries would be represented in the list as such:
+\[
+    [(0, \text{True}), (1, \text{False}), (2, \text{True}), (3, \text{False}), (4, \text{True})]
+\]
+
+Given a time \(t\), one may perform a simple binary search on the first elements of the tuples to determine the most recent change that occured in the connection. If the second element of the specified tuple is True, then the connection existed at time \(t\), and did not exist otherwise. The binary search algorithm has a worst case time complexity of \(\mathcal{O}(\log n)\), where \(n\) here denotes the number of changes made to the connection between the two vertices. This, asymptomatically, is much faster than the previous implementation. However, it is not trivial to construct such a complex query in a single Gremlin command. Hence, the work may be outsourced to a Python script or a Gremlin script to perform the binary search and return the value. We also find that it would be more efficient to construct this script in Gremlin, as querying the JanusGraph server from Python takes a substantial amount of time when compared to a native Gremlin query (explored in the next section).
+
+\subsection{Storing Past Properties of Vertices}
+
+Similarly to edges, we wish to know the history of properties of vertices in the graph. Specifically, every time a change is made to a vertex, we wish to store this new change along with all previous properties of the vertex, then, given a timestamp to query on, we retrieve the properties of the vertex at that date and time. 
+
+A possible approach is to store the properties in vertices adjancent to the vertex of the element we are looking at. Every time the element is changed, a new vertex is created with its new properties along with a timestamp, and connected to the vertex by an edge. For example, consider the following queries on vertex \(A\):
+
+\begin{itemize}
+    \item \textbf{Time:} 0. \textbf{Query:} Set the ``active'' property of \(A\) to \textbf{True}.
+    \item \textbf{Time:} 1. \textbf{Query:} Set the ``active'' property of \(A\) to \textbf{False}.
+    \item \textbf{Time:} 2. \textbf{Query:} Set the ``active'' property of \(A\) to \textbf{True}.
+\end{itemize}
+
+The following diagram illustrates the adjacent property vertices:
+\begin{figure}[H]
+    \centering
+    \fontsize{10pt}{20pt}\selectfont
+    \def\svgwidth{4in}
+    \input{drawing_2.pdf_tex}
+    \caption{Storing properties as adjacent vertices}
+\end{figure}
+
+Such an implementation would be highly structured, and allow quick returning of all past vertices using built-in Gremlin traversals. 
+
+To determine the most recent property given a timestamp, a process similar to the second method in the previous subsection could be performed, involving a binary search to return the most recent property and query the corresponding property vertex to access the properties of the element at this timestamp. Since such complex operations cannot be performed in one Gremlin command, a Python script (implemented in \textbf{property\_vertices.ipynb}) or a Gremlin script (which would be faster) could be used to make the query. 
+
+\newpage
+
+\section{Benchmarking}
+
+Not surprisingly, we find that sending queries to the JanusGraph server from the Python interface takes much longer than performing the same queries in native Gremlin. Suppose that we wish to query the number of vertices in our graph 100 times and find the average time it takes to do so. If we were to do so in Python, we would get:
+\begin{lstlisting}[language=Python, numbers=none]
+>>> Use the timeit module for querying the graph
+>>> from timeit import Timer
+>>> t = Timer("g.V().count().next()",'from __main__ import g')
+>>> t.timeit(number=100) / 100
+0.01622656100000313
+\end{lstlisting}
+
+This means that, every query of the graph from Python takes $\sim$16ms (based on the \code{timeit} documentation\footnote{https://docs.python.org/3/library/timeit.html}, \code{timeit.timeit} returns the time in seconds). When the same query is run from the Gremlin console, we get:
+\begin{lstlisting}[numbers=none]
+gremlin> clock(100) {g.V().count()}
+==>0.006461
+\end{lstlisting}
+
+Note that based on the implementation\footnote{https://github.com/apache/tinkerpop/blob/7c1a48538837a56b4a1e5b73bb9dfb77e0e93575/gremlin-core/src/main/java/org/apache/tinkerpop/gremlin/util/TimeUtil.java} of the \code{clock} method in Gremlin, this is in milliseconds! Thus, we find that querying the graph from Gremlin is approximately \textit{2500 times faster} than from Python (of course, this is assuming that there is no additional overhead from using Python's \code{timeit} module). While the Python queries are not slow (for practical purposes), this shows that queries written in Gremlin are clearly much faster.
+
 \section{Scaling}
 
-\section{Further Discussion}
-
+In practice, we are more concerned about paths of vertices than individual ones. Specifically, we often wish to know what components a signal travelled through as it was received by an antenna and travelled through the graph to the rack of GPUs and FPGA boards where it is then processed. Apache TinkerPop provides pre-built Gremlin ``recipes'' to perform common complex traversal queries\footnote{https://tinkerpop.apache.org/docs/current/recipes/}. The main recipe that we are interested in for the HIRAX project is the ``shortest path'' recipe, which returns the shortest path of vertices that connect two specified vertices. The vertices in this path can then be queried with a specific time to determine the properties of the components and their connections in the path at the time an experiment was being conducted. To minimize the number of calls to the database from the Python interface (as we saw is slow), as much of the work as possible must be done by Gremlin before being returned to the Python interface. Hence, prewritten Gremlin queries will be used to handle these common complex traversals that will be used in the HIRAX project that are not offered out-of-the-box by JanusGraph and Gremlin.
 
 \end{document}
