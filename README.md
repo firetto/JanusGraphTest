@@ -106,6 +106,10 @@ name = mgmt.makePropertyKey('name').dataType(String.class).cardinality(org.janus
 
 mgmt.buildIndex('byNameComposite', Vertex.class).addKey(name).buildCompositeIndex()
 
+mgmt.commit()
+
+mgmt = graph.openManagement()
+
 mgmt.updateIndex(mgmt.getGraphIndex("byNameComposite"), SchemaAction.REINDEX).get()
 
 mgmt.commit()
