@@ -102,7 +102,7 @@ To make certain queries faster, it is recommended that graph indexes are added. 
 ```
 mgmt = graph.openManagement()
 
-name = mgmt.makePropertyKey('name').dataType(String.class).cardinality(ord.janusgraph.core.Cardinality.SINGLE).make()
+name = mgmt.makePropertyKey('name').dataType(String.class).cardinality(org.janusgraph.core.Cardinality.SINGLE).make()
 
 mgmt.buildIndex('byNameComposite', Vertex.class).addKey(name).buildCompositeIndex()
 
