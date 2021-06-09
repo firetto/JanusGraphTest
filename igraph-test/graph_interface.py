@@ -11,13 +11,15 @@ from gremlin_python.structure.graph import Graph
 from gremlin_python.process.graph_traversal import __
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from gremlin_python.driver import client
-from gremlin_python.process.traversal import P # NEW!!! Import predicates (gt, gte, lt, lte, etc.)
-from gremlin_python.process.traversal import Cardinality # NEW!!! Import Cardinality such as list_, set_ and single.
+from gremlin_python.process.traversal import P # Import predicates (gt, gte, lt, lte, etc.)
+from gremlin_python.process.traversal import Cardinality # Import Cardinality such as list_, set_ and single.
 from gremlin_python.driver.protocol import GremlinServerError # Gremlin server error
 from gremlin_python.process.traversal import Pop # for Pop.all_ in select(Pop.all_, 'v')
 from gremlin_python.process.strategies import SubgraphStrategy
+from gremlin_python.process.graph_traversal import GraphTraversalSource
 
 from log_to_file import log_to_file
+
 
 class GraphInterface:
     """
@@ -25,10 +27,13 @@ class GraphInterface:
 
     :param ALLOWED_VERTEX_LABELS: Contains the allowed labels for vertices in the graph.
     :type ALLOWED_VERTEX_LABELS: tuple
+    :param g: A GraphTraversalSource element that allows to query the graph stored in the Gremlin Server.
+    :type g: GraphTraversalSource
     """
 
     ALLOWED_VERTEX_LABELS = ('component', 'type')
 
+    g: GraphTraversalSource
 
     def __init__(self, port: int=8182, traversal_source: str='g') -> None:
         """
@@ -39,6 +44,8 @@ class GraphInterface:
         :param traversal_source: The traversal source configured in the Gremlin server for the graph (see https://github.com/JanusGraph/janusgraph/issues/1051 for more), defaults to 'g'
         :type traversal_source: str, optional
         """
+
+        log_to_file(message=f"Instantiating graph interface.")
 
         self.graph = Graph()
 
@@ -158,3 +165,19 @@ class GraphInterface:
 
         except GremlinServerError as e:
             log_to_file(message=f"Failed to set {connection} connection between components {name1} and {name2} at time {time}. {e}", urgency=2)
+
+
+    def export_graph(self, file_name: str) -> None:
+        """
+        Export the graph to :param file_name:.
+
+        :param file_name: A file path.
+        :type file_name: str
+        """
+
+        log_to_file(message=f"Exporting graph to {file_name}.")
+
+        try:
+            self.g.io(file_name).write().iterate()
+        except GremlinServerError as e:
+            log_to_file(message=f"Failed to write graph to {file_name}. {e}", urgency=2)

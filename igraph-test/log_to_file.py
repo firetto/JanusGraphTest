@@ -20,7 +20,7 @@ def log_to_file(message: str, urgency: int=0, file_location: str='log.txt') -> N
     """
 
     # Using 'with' will automatically close the log file.
-    with open(file_location, 'w') as file:
+    with open(file_location, 'a') as file:
 
         if urgency == 0:
             urgency_msg = "INFO"
@@ -36,4 +36,4 @@ def log_to_file(message: str, urgency: int=0, file_location: str='log.txt') -> N
 
             log_to_file(message=f"Urgency value out of bounds: {urgency}, expected: 0, 1, 2.", urgency=1)
 
-        file.write(f'{datetime.now()} \t | \t {urgency_msg} \t | \t {message}')
+        file.write(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} \t | \t {urgency_msg} \t | \t {message}\n')
