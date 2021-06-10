@@ -54,7 +54,8 @@ def clear_graph(gi: GraphInterface) -> None:
 def load_graph(dishes: int, connections: list) -> GraphInterface:
     """
 
-    Instantiate a GraphInterface, and set up a HIRAX-style graph with :param dishes: dishes. 
+    Instantiate a GraphInterface, and set up a HIRAX-style graph with :param dishes: dishes with each pair of components in the 
+    signal chain being connected and disconnected identically based on :param connections:.
 
     :param dishes: Number of dishes the graph will contain.
     :type dishes: int

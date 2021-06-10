@@ -20,20 +20,22 @@ from gremlin_python.process.graph_traversal import GraphTraversalSource
 
 from log_to_file import log_to_file
 
+from local_graph import LocalGraph
+
 
 class GraphInterface:
     """
     A wrapper class for a graph interface, containing methods to intantiate the graph, load a HIRAX-style graph structure, and more.
 
-    :param ALLOWED_VERTEX_LABELS: Contains the allowed labels for vertices in the graph.
-    :type ALLOWED_VERTEX_LABELS: tuple
-    :param g: A GraphTraversalSource element that allows to query the graph stored in the Gremlin Server.
-    :type g: GraphTraversalSource
+    :ivar ALLOWED_VERTEX_LABELS: Contains the allowed labels for vertices in the graph.
+    :ivar g: A GraphTraversalSource element that allows to query the graph stored in the Gremlin Server.
     """
 
-    ALLOWED_VERTEX_LABELS = ('component', 'type')
+    ALLOWED_VERTEX_LABELS: tuple = ('component', 'type')
 
     g: GraphTraversalSource
+
+    local_graph: LocalGraph
 
     def __init__(self, port: int=8182, traversal_source: str='g') -> None:
         """
@@ -166,6 +168,7 @@ class GraphInterface:
         except GremlinServerError as e:
             log_to_file(message=f"Failed to set {connection} connection between components {name1} and {name2} at time {time}. {e}", urgency=2)
 
+    
 
     def export_graph(self, file_name: str) -> None:
         """
