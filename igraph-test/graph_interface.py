@@ -51,6 +51,8 @@ class GraphInterface:
 
         self.graph = Graph()
 
+        self.local_graph = LocalGraph()
+
         try:
             self.g = self.graph.traversal().withRemote(DriverRemoteConnection(f'ws://localhost:{port}/gremlin', traversal_source))
         except GremlinServerError as e:
@@ -169,6 +171,59 @@ class GraphInterface:
             log_to_file(message=f"Failed to set {connection} connection between components {name1} and {name2} at time {time}. {e}", urgency=2)
 
     
+    # This will put it in V-E-V-E-V-...-V form as a list per path.
+    def find_paths(self, name1: str, name2: str, avoid_type: str, time: float) -> list:
+        """
+        Given two vertices labelled with <name1> and <name2>, return the paths that connect the vertices by edges that were active at <time> as a list.
+
+        Avoid vertices of type avoid_type.
+
+        :param name1: Name parameter of the component vertex to traverse from.
+        :type name1: str
+        :param name2: Name parameter of the component vertex to terminate the traversal.
+        :type name2: str
+        :param avoid_type: Type of the component vertex to avoid when traversing.
+        :type avoid_type: str
+        :param time: Time to check the edges at.
+        :type time: float
+        :return: A list of paths of vertices and edges going from vertex with name :param name1: to vertex with name :param name2:
+        :rtype: list
+        """
+        
+        try:
+            return self.g.V().has('component', 'name', name1).repeat(
+                __.bothE('connection').and_(
+                    __.has('start', P.lte(time)),   # want start time to be less than or equal to <time>
+                    __.or_(
+                        __.hasNot('end'),           # end time doesn't have to exist 
+                        __.has('end', P.gt(time))  # OR end time must be greater than <time>
+                    )
+                ).otherV().not_(__.outE('type').inV().has('type', 'name', avoid_type)).simplePath()
+            ).until(__.has('component', 'name', name2)).path().toList()
+        except GremlinServerError as e:
+            log_to_file(message=f"Could not find paths between {name1} and {name2} at time {time} avoiding {avoid_type}. {e}", urgency=2)
+
+
+    def get_connected_vertices_at_time(self, time: float) -> list:
+        """Given a time, return the name properties of the component vertices connected by an edge that existed at this time and format it as a list[tuple[str, str]]
+
+        # TODO: this Gremlin query returns a really ugly thing, but it works. Fix, maybe?
+
+        :param time: Time to check
+        :type time: float
+        :return: List of 2-tuples containing the names of the pairs of vertices connected at :param time:.
+        :rtype: list[tuple[str, str]]
+        """
+
+        # l is a list containing at most one elemnt, which is a large dictionary of vertex1: vertex2 entries.
+        l = self.g.E().and_(__.has('start', P.lte(time)), __.or_(__.hasNot('end'), __.has('end', P.gt(time)))).project('a', 'b').by(__.inV().values('name')).by(__.outV().values('name')).toList()
+
+
+        if len(l) == 0:
+            return l
+        else:
+            return [tuple(d.values()) for d in l]
+
 
     def export_graph(self, file_name: str) -> None:
         """
