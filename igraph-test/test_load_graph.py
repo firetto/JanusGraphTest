@@ -309,15 +309,16 @@ def benchmark_paths(time: int, dishes: int, mod: int) -> None:
 
     # gi.local_graph.visualize_graph('subgraph.pdf')
 
+    # gi.export_graph('test_load_graph.xml')
+
 
 if __name__ == "__main__":
     
     benchmark_paths(time=1, dishes=512, mod=4)
 
-
     
 
-    # gi.export_graph('test_load_graph.xml')
+    
 
         
 
