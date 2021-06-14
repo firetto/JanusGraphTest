@@ -216,8 +216,13 @@ class GraphInterface:
         """
 
         # l is a list containing at most one elemnt, which is a large dictionary of vertex1: vertex2 entries.
-        l = self.g.E().and_(__.has('start', P.lte(time)), __.or_(__.hasNot('end'), __.has('end', P.gt(time)))).project('a', 'b').by(__.inV().values('name')).by(__.outV().values('name')).toList()
+        l = self.g.E().and_(
+            __.has('start', P.lte(time)), __.or_(__.hasNot('end'), __.has('end', P.gt(time)))
+            ).project('a', 'b').by(__.inV().values('name')).by(__.outV().values('name')).toList()
 
+        
+        # [{'a': ..., 'b': ...}]
+        
 
         if len(l) == 0:
             return l

@@ -8,6 +8,7 @@ Anatoly Zavyalov, 2021
 """
 
 from log_to_file import log_to_file
+from datetime import datetime
 
 import igraph
 
@@ -38,7 +39,11 @@ class LocalGraph():
         :type vertex_connections: list[tuple[str, str]]
         """
 
+        # TODO: FIX THIS. THIS IS BAD
+
         # See https://igraph.org/python/doc/api/igraph.formula.html for help regarding igraph Formulas.
+
+        now = datetime.now()
 
         # Start a formula
         formula = ", ".join([f"'{name1}'--'{name2}'" for (name1, name2) in vertex_connections])
@@ -48,6 +53,8 @@ class LocalGraph():
         self.graph = igraph.Graph.Formula(formula)
 
         self.graph.vs['label'] = self.graph.vs['name']
+
+        log_to_file(message=f"Done making local graph, that took {(datetime.now() - now).total_seconds()} seconds.")
         
 
     def find_shortest_paths(self, name1: str, name2: str):
@@ -68,7 +75,8 @@ class LocalGraph():
         
 
     def visualize_graph(self, target: str) -> None:
-        """Export the graph as an image to :param target:.
+        """
+        Export the graph as an image to :param target:.
 
         :param target: File location to export the file to. Should be in PNG, PDF, SVG or PostScript format.
         :type target: str
