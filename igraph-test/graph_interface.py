@@ -28,10 +28,15 @@ class GraphInterface:
     A wrapper class for a graph interface, containing methods to intantiate the graph, load a HIRAX-style graph structure, and more.
 
     :ivar ALLOWED_VERTEX_LABELS: Contains the allowed labels for vertices in the graph.
+    :ivar EXISTING_CONNECTION_END_PLACEHOLDER: The value of the 'end' property of a currently existing connection.
     :ivar g: A GraphTraversalSource element that allows to query the graph stored in the Gremlin Server.
+
+
     """
 
     ALLOWED_VERTEX_LABELS: tuple = ('component', 'type')
+
+    EXISTING_CONNECTION_END_PLACEHOLDER = 2**63 - 1
 
     g: GraphTraversalSource
 
@@ -156,16 +161,13 @@ class GraphInterface:
                 self.g.V().has('component', 'name', name1).as_("a").not_( # NEGATE 
                     __.bothE('connection').as_('e').bothV().has('component', 'name', name2).select('e').and_(
                         __.has('start', P.lte(time)),
-                        __.or_(
-                            __.hasNot('end'),
-                            __.has('end', P.gt(time))
-                        )
+                        __.has('end', P.gt(time))
                     )
-                ).V().has('component', 'name', name2).as_("b").addE('connection').from_("a").to("b").property('start', time).iterate()
+                ).V().has('component', 'name', name2).as_("b").addE('connection').from_("a").to("b").property('start', time).property('end', self.EXISTING_CONNECTION_END_PLACEHOLDER).iterate()
 
             else:
                 # For all edges between v1 and v2 labelled 'connection' (there should only be one) that do not have an 'end' property, create an end property of :param time:.
-                self.g.V().has('component', 'name', name1).bothE('connection').as_('e').bothV().has('component', 'name', name2).select('e').hasNot('end').property('end', time).iterate()
+                self.g.V().has('component', 'name', name1).bothE('connection').as_('e').bothV().has('component', 'name', name2).select('e').has('end', self.EXISTING_CONNECTION_END_PLACEHOLDER).property('end', time).iterate()
 
         except GremlinServerError as e:
             log_to_file(message=f"Failed to set {connection} connection between components {name1} and {name2} at time {time}. {e}", urgency=2)
@@ -194,10 +196,7 @@ class GraphInterface:
             return self.g.V().has('component', 'name', name1).repeat(
                 __.bothE('connection').and_(
                     __.has('start', P.lte(time)),   # want start time to be less than or equal to <time>
-                    __.or_(
-                        __.hasNot('end'),           # end time doesn't have to exist 
-                        __.has('end', P.gt(time))  # OR end time must be greater than <time>
-                    )
+                    __.has('end', P.gt(time))  # OR end time must be greater than <time>
                 ).otherV().not_(__.outE('type').inV().has('type', 'name', avoid_type)).simplePath()
             ).until(__.has('component', 'name', name2)).path().toList()
         except GremlinServerError as e:
@@ -217,8 +216,8 @@ class GraphInterface:
 
         # l is a list containing at most one elemnt, which is a large dictionary of vertex1: vertex2 entries.
         l = self.g.E().and_(
-            __.has('start', P.lte(time)), __.or_(__.hasNot('end'), __.has('end', P.gt(time)))
-            ).project('a', 'b').by(__.inV().values('name')).by(__.outV().values('name')).toList()
+            __.has('start', P.lte(time)), __.has('end', P.gt(time)
+            )).project('a', 'b').by(__.inV().values('name')).by(__.outV().values('name')).toList()
 
         
         # [{'a': ..., 'b': ...}]
