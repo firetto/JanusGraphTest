@@ -39,18 +39,39 @@ class LocalGraph():
         :type vertex_connections: list[tuple[str, str]]
         """
 
-        # TODO: FIX THIS. THIS IS BAD
-
-        # See https://igraph.org/python/doc/api/igraph.formula.html for help regarding igraph Formulas.
+        # See https://igraph.org/python/doc/tutorial/tutorial.html#setting-and-retrieving-attributes for help regarding igraph vertex/edge attributes.
 
         now = datetime.now()
 
-        # Start a formula
-        formula = ", ".join([f"'{name1}'--'{name2}'" for (name1, name2) in vertex_connections])
 
-        log_to_file(message="Making local graph with formula " + formula)
+        # vertex_names[i] denotes the name of the i'th vertex in the local graph.
+        vertex_name_arr = []
 
-        self.graph = igraph.Graph.Formula(formula)
+        # Dictionary of style {..., vertex_names[i]: i, ...}.   
+        vertex_name_to_ind = {}
+
+        # List of 2-tuples containing the indices of the pairs of vertices to be added (instead of the names).
+        vertex_index_connections = []
+
+        for pair in vertex_connections:
+
+            indices = []
+
+            for i in range(len(pair)):
+
+                if pair[i] not in vertex_name_to_ind:
+                    vertex_name_to_ind[pair[i]] = len(vertex_name_arr)
+                    vertex_name_arr.append(pair[i])
+
+                indices.append(vertex_name_to_ind[pair[i]])
+
+            vertex_index_connections.append(tuple(indices))
+
+        log_to_file(message="Making local graph.")
+
+        self.graph = igraph.Graph(vertex_index_connections)
+
+        self.graph.vs['name'] = vertex_name_arr
 
         self.graph.vs['label'] = self.graph.vs['name']
 

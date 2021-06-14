@@ -307,6 +307,7 @@ def benchmark_paths(time: int, dishes: int, mod: int) -> None:
 
     log_to_file(message=f"Benchmark: Finished benchmark with {dishes} dishes, modulo of {mod} and at time {time}.")
 
+    # gi.local_graph.visualize_graph('subgraph.pdf')
 
 
 if __name__ == "__main__":
@@ -314,7 +315,7 @@ if __name__ == "__main__":
     benchmark_paths(time=1, dishes=16, mod=4)
 
 
-    # gi.local_graph.visualize_graph('subgraph.pdf')
+    
 
     # gi.export_graph('test_load_graph.xml')
 
