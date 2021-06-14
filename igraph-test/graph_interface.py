@@ -159,10 +159,7 @@ class GraphInterface:
             if connection:
                 # Add an edge labelled 'connection' with a start time of :param time:
                 self.g.V().has('component', 'name', name1).as_("a").not_( # NEGATE 
-                    __.bothE('connection').as_('e').bothV().has('component', 'name', name2).select('e').and_(
-                        __.has('start', P.lte(time)),
-                        __.has('end', P.gt(time))
-                    )
+                    __.bothE('connection').as_('e').bothV().has('component', 'name', name2).select('e').has('start', P.lte(time)).has('end', P.gt(time))
                 ).V().has('component', 'name', name2).as_("b").addE('connection').from_("a").to("b").property('start', time).property('end', self.EXISTING_CONNECTION_END_PLACEHOLDER).iterate()
 
             else:
@@ -194,10 +191,7 @@ class GraphInterface:
         
         try:
             return self.g.V().has('component', 'name', name1).repeat(
-                __.bothE('connection').and_(
-                    __.has('start', P.lte(time)),   # want start time to be less than or equal to <time>
-                    __.has('end', P.gt(time))  # OR end time must be greater than <time>
-                ).otherV().not_(__.outE('type').inV().has('type', 'name', avoid_type)).simplePath()
+                __.bothE('connection').has('start', P.lte(time)).has('end', P.gt(time)).otherV().not_(__.outE('type').inV().has('type', 'name', avoid_type)).simplePath()
             ).until(__.has('component', 'name', name2)).path().toList()
         except GremlinServerError as e:
             log_to_file(message=f"Could not find paths between {name1} and {name2} at time {time} avoiding {avoid_type}. {e}", urgency=2)
@@ -215,9 +209,7 @@ class GraphInterface:
         """
 
         # l is a list containing at most one elemnt, which is a large dictionary of vertex1: vertex2 entries.
-        l = self.g.E().and_(
-            __.has('start', P.lte(time)), __.has('end', P.gt(time)
-            )).project('a', 'b').by(__.inV().values('name')).by(__.outV().values('name')).toList()
+        l = self.g.E().has('start', P.lte(time)).has('end', P.gt(time)).project('a', 'b').by(__.inV().values('name')).by(__.outV().values('name')).toList()
 
         
         # [{'a': ..., 'b': ...}]
