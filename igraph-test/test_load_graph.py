@@ -311,7 +311,7 @@ def benchmark_paths(time: int, dishes: int, mod: int) -> None:
 
 if __name__ == "__main__":
     
-    benchmark_paths(time=1, dishes=16, mod=4)
+    benchmark_paths(time=1, dishes=512, mod=4)
 
 
     # gi.local_graph.visualize_graph('subgraph.pdf')
